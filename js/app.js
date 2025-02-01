@@ -98,31 +98,70 @@ class ImageSlicer {
     sliceImage(img) {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
-        const sliceWidth = img.width / 3;
-        const sliceHeight = img.height / 3;
+        
+        // 计算最佳尺寸，保持原图比例
+        let targetWidth, targetHeight;
+        if (img.width > img.height) {
+            // 横图
+            targetWidth = Math.min(1200, img.width); // 限制最大宽度
+            targetHeight = (targetWidth * img.height) / img.width;
+        } else {
+            // 竖图
+            targetHeight = Math.min(1200, img.height); // 限制最大高度
+            targetWidth = (targetHeight * img.width) / img.height;
+        }
+        
+        // 创建一个正方形画布，使用较长边作为画布尺寸
+        const canvasSize = Math.max(targetWidth, targetHeight);
+        canvas.width = canvasSize;
+        canvas.height = canvasSize;
+        
+        // 计算居中位置
+        const offsetX = (canvasSize - targetWidth) / 2;
+        const offsetY = (canvasSize - targetHeight) / 2;
+        
+        // 绘制白色背景
+        ctx.fillStyle = '#FFFFFF';
+        ctx.fillRect(0, 0, canvasSize, canvasSize);
+        
+        // 在画布中央绘制缩放后的图片
+        ctx.drawImage(img, 
+            0, 0, img.width, img.height,  // 源图像区域
+            offsetX, offsetY, targetWidth, targetHeight  // 目标区域
+        );
+        
+        // 计算每个切片的尺寸
+        const sliceSize = Math.floor(canvasSize / 3);
         
         this.gridContainer.innerHTML = '';
         this.downloadAllBtn.disabled = false;
 
         for (let row = 0; row < 3; row++) {
             for (let col = 0; col < 3; col++) {
-                canvas.width = sliceWidth;
-                canvas.height = sliceHeight;
+                const sliceCanvas = document.createElement('canvas');
+                const sliceCtx = sliceCanvas.getContext('2d');
                 
-                ctx.drawImage(img,
-                    col * sliceWidth, row * sliceHeight,
-                    sliceWidth, sliceHeight,
+                sliceCanvas.width = sliceSize;
+                sliceCanvas.height = sliceSize;
+                
+                const sourceX = col * sliceSize;
+                const sourceY = row * sliceSize;
+                
+                // 绘制切片
+                sliceCtx.drawImage(canvas,
+                    sourceX, sourceY,
+                    sliceSize, sliceSize,
                     0, 0,
-                    sliceWidth, sliceHeight
+                    sliceSize, sliceSize
                 );
 
-                const sliceUrl = canvas.toDataURL('image/png');
-                this.createGridItem(sliceUrl, row, col, sliceWidth, sliceHeight);
+                const sliceUrl = sliceCanvas.toDataURL('image/png');
+                this.createGridItem(sliceUrl, row, col);
             }
         }
     }
 
-    createGridItem(imageUrl, row, col, width, height) {
+    createGridItem(imageUrl, row, col) {
         const gridItem = document.createElement('div');
         gridItem.className = 'grid-item';
         
