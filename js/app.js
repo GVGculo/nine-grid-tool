@@ -99,15 +99,13 @@ class ImageSlicer {
         const canvas = document.createElement('canvas');
         const ctx = canvas.getContext('2d');
         
-        // 计算最佳尺寸，保持原图比例
+        // 保持原图分辨率，但限制最大尺寸为 4000 像素以防止性能问题
         let targetWidth, targetHeight;
         if (img.width > img.height) {
-            // 横图
-            targetWidth = Math.min(1200, img.width); // 限制最大宽度
+            targetWidth = Math.min(4000, img.width);
             targetHeight = (targetWidth * img.height) / img.width;
         } else {
-            // 竖图
-            targetHeight = Math.min(1200, img.height); // 限制最大高度
+            targetHeight = Math.min(4000, img.height);
             targetWidth = (targetHeight * img.width) / img.height;
         }
         
@@ -141,6 +139,7 @@ class ImageSlicer {
                 const sliceCanvas = document.createElement('canvas');
                 const sliceCtx = sliceCanvas.getContext('2d');
                 
+                // 设置切片画布尺寸为原始尺寸
                 sliceCanvas.width = sliceSize;
                 sliceCanvas.height = sliceSize;
                 
@@ -155,7 +154,8 @@ class ImageSlicer {
                     sliceSize, sliceSize
                 );
 
-                const sliceUrl = sliceCanvas.toDataURL('image/png');
+                // 使用更高质量的PNG格式
+                const sliceUrl = sliceCanvas.toDataURL('image/png', 1.0);
                 this.createGridItem(sliceUrl, row, col);
             }
         }
@@ -180,7 +180,10 @@ class ImageSlicer {
 
     downloadImage(imageUrl, row, col) {
         const link = document.createElement('a');
-        link.download = `slice_${row + 1}_${col + 1}.png`;
+        const fileName = this.currentFile ? 
+            `${this.currentFile.name.split('.')[0]}_${row + 1}_${col + 1}.png` : 
+            `slice_${row + 1}_${col + 1}.png`;
+        link.download = fileName;
         link.href = imageUrl;
         link.click();
     }
@@ -188,17 +191,24 @@ class ImageSlicer {
     async downloadAllImages() {
         const images = Array.from(this.gridContainer.getElementsByTagName('img'));
         const zip = new JSZip();
+        const baseName = this.currentFile ? 
+            this.currentFile.name.split('.')[0] : 
+            'slice';
 
         images.forEach((img, index) => {
             const row = Math.floor(index / 3) + 1;
             const col = (index % 3) + 1;
             const imageData = img.src.split(',')[1];
-            zip.file(`slice_${row}_${col}.png`, imageData, {base64: true});
+            zip.file(`${baseName}_${row}_${col}.png`, imageData, {base64: true});
         });
 
-        const content = await zip.generateAsync({type: 'blob'});
+        const content = await zip.generateAsync({
+            type: 'blob',
+            compression: 'STORE' // 不压缩以保持图片质量
+        });
+        
         const link = document.createElement('a');
-        link.download = 'nine_grid_slices.zip';
+        link.download = `${baseName}_nine_grid.zip`;
         link.href = URL.createObjectURL(content);
         link.click();
     }
